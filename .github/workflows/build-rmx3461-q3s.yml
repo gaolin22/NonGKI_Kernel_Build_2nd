@@ -15,6 +15,10 @@ env:
   GCC_GNU: false
   GCC_64: false
   PYTHON_VERSION: "3.10"
+  # ↓↓↓ 新增：打包方法（解决 Need packing method!） ↓↓↓
+  PACK_METHOD: "AnyKernel3"
+  AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
+  AK3_BRANCH: "master"
 
 jobs:
   build-kernel:
@@ -24,6 +28,11 @@ jobs:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
+      # ↓↓↓ 新增：job 级双保险 ↓↓↓
+      PACK_METHOD: "AnyKernel3"
+      AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
+      AK3_BRANCH: "master"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -32,6 +41,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+
+      # ↓↓↓ 新增：确保子 action 能读到 PYTHON_VERSION ↓↓↓
+      - name: Export PYTHON_VERSION for sub-actions
+        run: echo "PYTHON_VERSION=3.10" >> $GITHUB_ENV
 
       - name: Compile environment preparation
         uses: ./.github/workflows/build-env
