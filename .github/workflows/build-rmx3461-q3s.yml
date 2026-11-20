@@ -1,7 +1,9 @@
 name: Build Realme Q3S (RMX3461) Kernel (KSU)
+
 on:
   workflow_call:
   workflow_dispatch:
+
 env:
   DEVICE_NAME: "realme_q3s"
   DEVICE_CODENAME: "RMX3461"
@@ -32,7 +34,7 @@ env:
   NEED_DTBO: false
   NEED_SAFE_DTBO: false
   ROM_TEXT: "realme-ui-3.0-a12-5.4-qgki"
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.10"
   PACK_METHOD: "AnyKernel3"
   PACK_KMODULES: "false"
   KERNELSU_METHOD: "shell"
@@ -71,6 +73,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Force setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
       - name: Compilation environment preparation
         uses: ./.github/workflows/build-env
