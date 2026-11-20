@@ -6,7 +6,7 @@ env:
   DEVICE_NAME: "realme_q3s"
   DEVICE_CODENAME: "RMX3461"
   CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-"
-  EXTRA_CMDS: "LLVM=1 LLVM_IAS=0 LD=ld.lld"
+  EXTRA_CMDS: "LLVM=1 LLVM_IAS=1 LD=ld.lld"
   KERNEL_SOURCE: "https://github.com/YouandYu/realme_Q3s_Q3t_9-5G-Speed-AndroidS-kernel-source"
   KERNEL_BRANCH: "master"
   CLANG_SOURCE: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android12-release/clang-r416183b.tar.gz"
@@ -115,9 +115,8 @@ jobs:
           cd "$GITHUB_WORKSPACE/device_kernel"
           echo "Generating defconfig: ${DEFCONFIG_NAME}"
           mkdir -p out
-          make O=out ARCH=arm64 "${DEFCONFIG_NAME}"
-          # 自动接受所有新配置选项的默认值，避免交互式 EOF 错误
-          make O=out ARCH=arm64 olddefconfig
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 "${DEFCONFIG_NAME}"
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
           if [ -f out/.config ]; then
             echo "Config generated successfully."
           else
