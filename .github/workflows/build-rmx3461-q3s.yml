@@ -3,7 +3,6 @@ on:
   workflow_call:
   workflow_dispatch:
 env:
-  # Device env
   DEVICE_NAME: "realme_q3s"
   DEVICE_CODENAME: "RMX3461"
   CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_CFLAGS=-target aarch64"
@@ -33,7 +32,6 @@ env:
   NEED_DTBO: false
   NEED_SAFE_DTBO: false
   ROM_TEXT: "realme-ui-3.0-a12-5.4-qgki"
-  # Other env
   PYTHON_VERSION: "3"
   PACK_METHOD: "AnyKernel3"
   PACK_KMODULES: "false"
@@ -70,20 +68,21 @@ jobs:
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
     steps:
-      - name: ⏰ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: ⌛️ Compilation environment preparation
+      - name: Compilation environment preparation
         uses: ./.github/workflows/build-env
 
-      - name: ⚙️ Get necessary tools
+      - name: Get necessary tools
         uses: ./.github/workflows/build-ready
 
-      - name: 🔗 Patch for no-kprobe
+      - name: Patch for no-kprobe
         uses: ./.github/workflows/patch-no-kprobe
 
-      - name: 🩹 Patch KGDB brk imm
+      - name: Patch KGDB brk imm
         run: |
+          set -e
           FILE="$(find "$GITHUB_WORKSPACE" -path '*/arch/arm64/include/asm/kgdb.h' 2>/dev/null | head -n1)"
           if [ -n "$FILE" ] && [ -f "$FILE" ]; then
             echo "Patching $FILE"
@@ -93,38 +92,38 @@ jobs:
             echo "::warning::kgdb.h not found, skip"
           fi
 
-      - name: 🩹 Patch stack_pointer for Clang
+      - name: Patch stack_pointer for Clang
         run: |
+          set -e
           FILE="$(find "$GITHUB_WORKSPACE" -path '*/arch/arm64/include/asm/stack_pointer.h' 2>/dev/null | head -n1)"
-          if [ -n "$FILE" ] && [ -f "$FILE" ]; then
-            echo "Patching $FILE"
-            cat > "$FILE" <<'EOF'
-            /* SPDX-License-Identifier: GPL-2.0 */
-            #ifndef __ASM_STACK_POINTER_H
-            #define __ASM_STACK_POINTER_H
-            #ifndef __ASSEMBLY__
-            #ifdef __clang__
-            static inline unsigned long current_stack_pointer(void)
-            {
-            	unsigned long sp;
-            	asm volatile ("mov %0, sp" : "=r" (sp));
-            	return sp;
-            }
-            #else
-            register unsigned long current_stack_pointer asm ("sp");
-            #endif
-            #endif
-            #endif /* __ASM_STACK_POINTER_H */
-            EOF
-          else
+          if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
             echo "::warning::stack_pointer.h not found, skip"
+            exit 0
           fi
+          echo "Patching $FILE"
+          printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0 */' > "$FILE"
+          printf '%s\n' '#ifndef __ASM_STACK_POINTER_H' >> "$FILE"
+          printf '%s\n' '#define __ASM_STACK_POINTER_H' >> "$FILE"
+          printf '%s\n' '#ifndef __ASSEMBLY__' >> "$FILE"
+          printf '%s\n' '#ifdef __clang__' >> "$FILE"
+          printf '%s\n' 'static inline unsigned long current_stack_pointer(void)' >> "$FILE"
+          printf '%s\n' '{' >> "$FILE"
+          printf '%s\n' '    unsigned long sp;' >> "$FILE"
+          printf '%s\n' '    asm volatile ("mov %0, sp" : "=r" (sp));' >> "$FILE"
+          printf '%s\n' '    return sp;' >> "$FILE"
+          printf '%s\n' '}' >> "$FILE"
+          printf '%s\n' '#else' >> "$FILE"
+          printf '%s\n' 'register unsigned long current_stack_pointer asm ("sp");' >> "$FILE"
+          printf '%s\n' '#endif' >> "$FILE"
+          printf '%s\n' '#endif' >> "$FILE"
+          printf '%s\n' '#endif /* __ASM_STACK_POINTER_H */' >> "$FILE"
+          echo "Done."
 
-      - name: 🚀 Build Process
+      - name: Build Process
         uses: ./.github/workflows/build-process
 
-      - name: 🔩 Pack Process
+      - name: Pack Process
         uses: ./.github/workflows/pack-process
 
-      - name: ✏️ Upload Artifacts
+      - name: Upload Artifacts
         uses: ./.github/workflows/upload-files
