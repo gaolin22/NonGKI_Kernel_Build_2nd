@@ -82,6 +82,17 @@ jobs:
       - name: 🔗 Patch for no-kprobe
         uses: ./.github/workflows/patch-no-kprobe
 
+      - name: 🩹 Patch KGDB brk imm
+        run: |
+          FILE="$GITHUB_WORKSPACE/device_kernel/arch/arm64/include/asm/kgdb.h"
+          if [ -f "$FILE" ]; then
+            echo "Patching $FILE"
+            sed -i 's/"I" *(KGDB_COMPILED_DBG_BRK_IMM)/"i" (KGDB_COMPILED_DBG_BRK_IMM)/g' "$FILE"
+            grep -n "KGDB_COMPILED_DBG_BRK_IMM" "$FILE" || true
+          else
+            echo "::warning::$FILE not found, skip KGDB patch"
+          fi
+
       - name: 🚀 Build Process
         uses: ./.github/workflows/build-process
 
