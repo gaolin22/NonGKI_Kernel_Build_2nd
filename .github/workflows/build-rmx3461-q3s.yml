@@ -6,14 +6,14 @@ env:
   # Device env
   DEVICE_NAME: "realme_q3s"
   DEVICE_CODENAME: "RMX3461"
-  CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu-"
+  CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_CFLAGS=-target aarch64"
   EXTRA_CMDS: "LLVM=1 LLVM_IAS=0 LD=ld.lld"
   KERNEL_SOURCE: "https://github.com/YouandYu/realme_Q3s_Q3t_9-5G-Speed-AndroidS-kernel-source"
   KERNEL_BRANCH: "master"
-  CLANG_SOURCE: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r383902b.tar.gz"
+  CLANG_SOURCE: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android12-release/clang-r416183b.tar.gz"
   CLANG_BRANCH: ""
   GCC_GNU: false
-  GCC_64_SOURCE: ""
+  GCC_64_SOURCE: "https://github.com/SnapdragonGCC/aarch64-linux-android-4.9/archive/refs/heads/5.4.tar.gz"
   GCC_64_BRANCH: ""
   GCC_32_SOURCE: ""
   GCC_32_BRANCH: ""
@@ -84,13 +84,40 @@ jobs:
 
       - name: 🩹 Patch KGDB brk imm
         run: |
-          FILE="$GITHUB_WORKSPACE/device_kernel/arch/arm64/include/asm/kgdb.h"
-          if [ -f "$FILE" ]; then
+          FILE="$(find "$GITHUB_WORKSPACE" -path '*/arch/arm64/include/asm/kgdb.h' 2>/dev/null | head -n1)"
+          if [ -n "$FILE" ] && [ -f "$FILE" ]; then
             echo "Patching $FILE"
             sed -i 's/"I" *(KGDB_COMPILED_DBG_BRK_IMM)/"i" (KGDB_COMPILED_DBG_BRK_IMM)/g' "$FILE"
             grep -n "KGDB_COMPILED_DBG_BRK_IMM" "$FILE" || true
           else
-            echo "::warning::$FILE not found, skip KGDB patch"
+            echo "::warning::kgdb.h not found, skip"
+          fi
+
+      - name: 🩹 Patch stack_pointer for Clang
+        run: |
+          FILE="$(find "$GITHUB_WORKSPACE" -path '*/arch/arm64/include/asm/stack_pointer.h' 2>/dev/null | head -n1)"
+          if [ -n "$FILE" ] && [ -f "$FILE" ]; then
+            echo "Patching $FILE"
+            cat > "$FILE" <<'EOF'
+            /* SPDX-License-Identifier: GPL-2.0 */
+            #ifndef __ASM_STACK_POINTER_H
+            #define __ASM_STACK_POINTER_H
+            #ifndef __ASSEMBLY__
+            #ifdef __clang__
+            static inline unsigned long current_stack_pointer(void)
+            {
+            	unsigned long sp;
+            	asm volatile ("mov %0, sp" : "=r" (sp));
+            	return sp;
+            }
+            #else
+            register unsigned long current_stack_pointer asm ("sp");
+            #endif
+            #endif
+            #endif /* __ASM_STACK_POINTER_H */
+            EOF
+          else
+            echo "::warning::stack_pointer.h not found, skip"
           fi
 
       - name: 🚀 Build Process
