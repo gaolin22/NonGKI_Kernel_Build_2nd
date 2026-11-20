@@ -8,28 +8,12 @@ env:
   DEVICE_CODENAME: "RMX3461"
   CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-"
   EXTRA_CMDS: "LLVM=1 LLVM_IAS=1 LD=ld.lld"
+  PYTHON_VERSION: "3.9"
   KERNEL_SOURCE: "https://github.com/YouandYu/realme_Q3s_Q3t_9-5G-Speed-AndroidS-kernel-source"
   KERNEL_BRANCH: "master"
   CLANG_SOURCE: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android12-release/clang-r416183b.tar.gz"
   CLANG_BRANCH: ""
-  GCC_GNU: false
-  GCC_64_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android12-release.tar.gz"
-  AND_GUARD_ENABLE: "false"
-  VPNHIDE_ENABLE: "false"
-  HOOK_METHOD: "syscall"
-  KPM_ENABLE: "false"
-  KPM_INLINE: "false"
-  KPM_KPATCH_NEXT: "false"
-  KPM_PATCH_SOURCE: ""
-  BASEBAND_GUARD_ENABLE: "false"
-  BASEBAND_GUARD_BOOT: "false"
-  GENERATE_DTB: "false"
-  GENERATE_CHIP: "qcom"
-  BUILD_DEBUGGER: "true"
-  SKIP_PATCH: "false"
-  BUILD_OTHER_CONFIG: "false"
-  MERGE_CONFIG_FILES: ""
-  FREE_MORE_SPACE: "false"
+  GCC_GNU: "false"
 
 jobs:
   build-kernel:
@@ -45,9 +29,13 @@ jobs:
 
       - name: Compilation environment preparation
         uses: ./.github/workflows/build-env
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Get necessary tools
         uses: ./.github/workflows/build-ready
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Patch for no-kprobe
         uses: ./.github/workflows/patch-no-kprobe
@@ -86,7 +74,6 @@ jobs:
           FILE="$(find "$GITHUB_WORKSPACE" -path '*/include/uapi/linux/openvswitch.h' 2>/dev/null | head -n1)"
           if [ -n "$FILE" ] && [ -f "$FILE" ]; then
             echo "Patching UAPI header: $FILE"
-            # 为枚举添加内核 UAPI 规范要求的注释元数据
             sed -i 's/OVS_METER_BAND_TYPE_UNSPEC,/OVS_METER_BAND_TYPE_UNSPEC,\t\/\* Unspecified. \*\//' "$FILE"
             sed -i 's/OVS_METER_BAND_TYPE_DROP,/OVS_METER_BAND_TYPE_DROP,\t\/\* Drop exceeding packets. \*\//' "$FILE"
             echo "openvswitch.h patched."
@@ -100,9 +87,8 @@ jobs:
           cd "$GITHUB_WORKSPACE/device_kernel"
           echo "Generating defconfig: ${DEFCONFIG_NAME}"
           mkdir -p out
-          # 传入 LLVM 参数，并禁用头文件检查
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 KBUILD_HEADERS= CHECK="true" "${DEFCONFIG_NAME}"
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 KBUILD_HEADERS= olddefconfig
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 "${DEFCONFIG_NAME}"
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
           if [ -f out/.config ]; then
             echo "Config generated successfully."
           else
